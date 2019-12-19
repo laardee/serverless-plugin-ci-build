@@ -11,18 +11,19 @@ class CIBuildPlugin {
     this.options = options;
     this.uuidRegion = uuidV4();
     this.uuidStage = uuidV4();
-    this.buildPlugin = this.serverless.service.custom ? this.serverless.service.custom.buildPlugin : {};
+    this.buildPlugin = this.serverless.service.custom
+      ? this.serverless.service.custom.buildPlugin
+      : {};
 
     // @todo if deployment bucket is set it should be removed when deploying with noDeploy
     // this.uuidDeploymentBucket = uuidV4();
 
     if (this.options.buildPlugin) {
-      this.options = Object.assign(this.options,
-        {
-          noDeploy: true,
-          stage: this.buildPlugin.templateStage || this.uuidStage,
-          region: this.buildPlugin.templateRegion || this.uuidRegion,
-        });
+      this.options = Object.assign(this.options, {
+        noDeploy: true,
+        stage: this.buildPlugin.templateStage || this.uuidStage,
+        region: this.buildPlugin.templateRegion || this.uuidRegion,
+      });
     }
     this.commands = {};
     this.hooks = {
@@ -32,14 +33,23 @@ class CIBuildPlugin {
 
   createArtifacts() {
     if (this.options.buildPlugin) {
-      const stack =
-        JSON.parse(fse.readFileSync(path.join('.serverless', 'cloudformation-template-update-stack.json'), 'utf8'));
+      const stack = JSON.parse(
+        fse.readFileSync(
+          path.join('.serverless', 'cloudformation-template-update-stack.json'),
+          'utf8',
+        ),
+      );
+
+      const state = JSON.parse(
+        fse.readFileSync(path.join('.serverless', 'serverless-state.json'), 'utf8'),
+      );
 
       delete stack.Resources.ServerlessDeploymentBucket;
 
       const ServerlessDeploymentBucket = {
         Type: 'String',
         Description: 'Deployment Bucket Name',
+        Default: this.buildPlugin.deploymentBucket || '{{ deployment_bucket }}',
       };
 
       if (!stack.Parameters) {
@@ -51,14 +61,18 @@ class CIBuildPlugin {
       const serviceName = this.serverless.service.service;
 
       const replacer = (key, value) => {
-        if (typeof (value) === 'string') {
+        if (typeof value === 'string') {
           const buildPluginStage = this.buildPlugin.stage || '{{ stage }}';
           const buildPluginRegion = this.buildPlugin.region || '{{ region }}';
           const buildPluginArtifact = this.buildPlugin.artifactPath || '{{ artifact_path }}';
           const regexStage = new RegExp(this.options.stage, 'g');
           const regexRegion = new RegExp(this.options.region, 'g');
-          const regexArtifact = new RegExp(`serverless/${serviceName}/${buildPluginStage}/[0-9-T:.Z]+/`, 'g');
-          return value.replace(regexStage, buildPluginStage)
+          const regexArtifact = new RegExp(
+            `serverless/${serviceName}/${buildPluginStage}/[0-9-T:.Z]+/`,
+            'g',
+          );
+          return value
+            .replace(regexStage, buildPluginStage)
             .replace(regexRegion, buildPluginRegion)
             .replace(regexArtifact, `${buildPluginArtifact}/`);
         }
@@ -66,29 +80,36 @@ class CIBuildPlugin {
       };
 
       const buildPluginDir = this.buildPlugin.buildDirectory || '.buildPlugin';
-      const templatePath = path.join(buildPluginDir, `${serviceName}.json.j2`);
+      const templatePath = path.join(
+        buildPluginDir,
+        'cloudformation-template-update-stack.json.j2',
+      );
+      const statePath = path.join(buildPluginDir, 'serverless-state.json.j2');
 
       // Create buildPlugin deployment directory
       fse.mkdirsSync(buildPluginDir);
 
       // Save template
-      const template = JSON.stringify(stack, replacer, 2);
-      fse.writeFileSync(templatePath, template);
-      this.log(`Created buildPlugin template ${templatePath}`);
+      const parameterizedTemplate = JSON.stringify(stack, replacer, 2);
+      fse.writeFileSync(templatePath, parameterizedTemplate);
+      this.log(`Created template ${templatePath}`);
 
-      Object.keys(this.serverless.service.functions).reduce((result, key) => {
-        const artifact = this.serverless.service.functions[key].package.artifact;
-        if (result.indexOf(artifact) === -1) {
-          result.push(artifact);
-        }
-        return result;
-      }, [])
+      const parameterizedState = JSON.stringify(state, replacer, 2);
+      fse.writeFileSync(statePath, parameterizedState);
+      this.log(`Created state ${statePath}`);
+
+      Object.keys(this.serverless.service.functions)
+        .reduce((result, key) => {
+          const artifact = this.serverless.service.functions[key].package.artifact;
+          if (result.indexOf(artifact) === -1) {
+            result.push(artifact);
+          }
+          return result;
+        }, [])
         .forEach((zipfile) => {
           const zipfilename = path.parse(zipfile).base;
           // Copy zip
-          fse.copySync(
-            zipfile,
-            path.join(buildPluginDir, zipfilename));
+          fse.copySync(zipfile, path.join(buildPluginDir, zipfilename));
           this.log(`Copied zip ${zipfilename} to ${buildPluginDir}/${zipfilename}`);
         });
     }
