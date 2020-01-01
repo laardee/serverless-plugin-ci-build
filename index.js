@@ -116,7 +116,7 @@ class CIBuildPlugin {
 
           return value
             .replace(regexRow, (found) => (key !== 'Fn::Sub' ? `###SUB###${found}###/SUB###` : found))
-            .replace(regexArtifact, `${buildPluginArtifact}/`)
+            .replace(regexArtifact, `${buildPluginArtifact}`)
             .replace(regexStage, buildPluginStage)
             .replace(regexRegion, buildPluginRegion);
         }
