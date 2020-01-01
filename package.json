@@ -1,7 +1,7 @@
 {
   "name": "serverless-plugin-ci-build",
   "description": "Serverless Framework Plugin that creates Jinja2 template from CloudFormation templates",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "index.js",
   "author": "Eetu Tuomala",
   "license": "MIT",
