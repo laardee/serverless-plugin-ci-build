@@ -3,12 +3,12 @@ module.exports = {
   "plugins": [],
   "rules": {
     "func-names": "off",
-
-    // doesn't work in node v4 :(
     "strict": "off",
     "prefer-rest-params": "off",
     "react/require-extension": "off",
-    "import/no-extraneous-dependencies": "off"
+    "import/no-extraneous-dependencies": "off",
+    "semi": "off",
+    "comma-dangle": "off"
   },
   "env": {
     "jest": true

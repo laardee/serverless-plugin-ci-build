@@ -1,9 +1,10 @@
 'use strict';
 
-const fse = require('fs-extra');
+const fs = require('fs-extra');
 const path = require('path');
 const uuidV4 = require('uuid/v4');
 const chalk = require('chalk');
+// const {merge} = require('ramda')
 
 class CIBuildPlugin {
   constructor(serverless, options) {
@@ -37,18 +38,11 @@ class CIBuildPlugin {
   createArtifacts() {
     if (this.options.buildPlugin) {
       const stack = JSON.parse(
-        fse.readFileSync(
+        fs.readFileSync(
           path.join('.serverless', 'cloudformation-template-update-stack.json'),
           'utf8',
         ),
       );
-
-      // const state = JSON.parse(
-      //   fse.readFileSync(
-      //     path.join('.serverless', 'serverless-state.json'),
-      //     'utf8',
-      //   ),
-      // );
 
       delete stack.Resources.ServerlessDeploymentBucket;
 
@@ -126,7 +120,7 @@ class CIBuildPlugin {
       const buildPluginDir = this.buildPlugin.buildDirectory || '.buildPlugin';
 
       // Create buildPlugin deployment directory
-      fse.mkdirsSync(buildPluginDir);
+      fs.mkdirsSync(buildPluginDir);
 
       // Save template
       const templatePathJson = path.join(
@@ -144,25 +138,9 @@ class CIBuildPlugin {
       const parameterizedTemplateJson = JSON.stringify(
         JSON.parse(parameterizedTemplate),
       );
-      fse.writeFileSync(templatePathJson, parameterizedTemplateJson);
-      fse.writeFileSync(templatePathJinja, parameterizedTemplateJson);
+      fs.writeFileSync(templatePathJson, parameterizedTemplateJson);
+      fs.writeFileSync(templatePathJinja, parameterizedTemplateJson);
       this.log(`Created template ${templatePathJson} & ${templatePathJinja}`);
-
-      // // Save state
-      // const statePathJson = path.join(buildPluginDir, "serverless-state.json");
-      // const statePathJinja = path.join(
-      //   buildPluginDir,
-      //   "serverless-state.json.j2"
-      // );
-      // const parameterizedState = JSON.stringify(state, replacer, 2)
-      //   .replace(/"(?:(?!").)*?###SUB###/g, '{ "Fn::Sub": "')
-      //   .replace(/###\/SUB###"/g, '" }');
-      // const parameterizedStateJson = JSON.stringify(
-      //   JSON.parse(parameterizedState)
-      // );
-      // fse.writeFileSync(statePathJson, parameterizedStateJson);
-      // fse.writeFileSync(statePathJinja, parameterizedStateJson);
-      // this.log(`Created state ${statePathJson} & ${statePathJinja}`);
 
       Object.keys(this.serverless.service.functions)
         .reduce((result, key) => {
@@ -176,7 +154,7 @@ class CIBuildPlugin {
         .forEach((zipfile) => {
           const zipfilename = path.parse(zipfile).base;
           // Copy zip
-          fse.copySync(zipfile, path.join(buildPluginDir, zipfilename));
+          fs.copySync(zipfile, path.join(buildPluginDir, zipfilename));
           this.log(
             `Copied zip ${zipfilename} to ${buildPluginDir}/${zipfilename}`,
           );
